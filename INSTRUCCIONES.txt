@@ -1,0 +1,3 @@
+Para ejecutar el programa se debe primero ejecutar el taildwind y luego el manage en TERMINALES DISTINTAS
+npm run build:css
+python manage.py runserver

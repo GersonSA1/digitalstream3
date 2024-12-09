@@ -1,0 +1,17 @@
+{% extends 'index.html' %}
+
+{% block title %}Eliminar Cuenta{% endblock %}
+
+{% block content %}
+<div class="container px-6 mx-auto">
+    <h2 class="my-6 text-2xl font-semibold text-gray-700 dark:text-gray-200">Eliminar Cuenta</h2>
+    <p>¿Estás seguro de que deseas eliminar la cuenta <strong>{{ object.correo_cuenta }}</strong>?</p>
+    <form method="POST">
+        {% csrf_token %}
+        <div class="flex justify-end">
+            <button type="submit" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">Eliminar</button>
+            <a href="{% url 'lista_cuentas' %}" class="ml-4 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700">Cancelar</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

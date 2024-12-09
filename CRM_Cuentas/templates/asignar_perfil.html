@@ -1,0 +1,94 @@
+{% extends 'index.html' %}
+
+{% block content %}
+<div class="container mx-auto mt-8">
+    <h2 class="text-2xl font-semibold text-white">Asignar Perfil</h2>
+
+    <!-- Formulario de Perfil -->
+    <form method="post">
+        {% csrf_token %}
+        
+        <!-- Formulario de Perfil -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="flex flex-col">
+                <label class="text-white">{{ perfil_form.mes.label }}</label>
+                {{ perfil_form.mes }}
+
+                <label class="text-white">{{ perfil_form.notas.label }}</label>
+                {{ perfil_form.notas }}
+            </div>
+
+            <div class="flex flex-col">
+                <label class="text-white">{{ perfil_form.id_cliente.label }}</label>
+                <div class="flex items-center space-x-4">
+                    <!-- Campo Id Cliente -->
+                    {{ perfil_form.id_cliente }}
+
+                    <!-- Botón Agregar Cliente -->
+                    <button type="button" class="mt-4 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700" onclick="openModal()">
+                        Agregar Cliente
+                    </button>
+                </div>
+
+                <label class="text-white">{{ perfil_form.id_tipo_dispositivo.label }}</label>
+                {{ perfil_form.id_tipo_dispositivo }}
+            </div>
+        </div>
+
+        <!-- Formulario de PerfilCuenta -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="flex flex-col">
+                <label class="text-white">{{ perfil_cuenta_form.usuario.label }}</label>
+                {{ perfil_cuenta_form.usuario }}
+
+                <label class="text-white">{{ perfil_cuenta_form.pin.label }}</label>
+                {{ perfil_cuenta_form.pin }}
+            </div>
+        </div>
+
+        <!-- Botón para guardar perfil -->
+        <button type="submit" name="perfil_form" class="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+            Guardar Perfil
+        </button>
+    </form>
+
+    <!-- Modal de Agregar Cliente -->
+    <div id="agregarClienteModal" class="fixed inset-0 hidden bg-gray-800 bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg p-6 w-1/3">
+            <div class="flex justify-between items-center">
+                <h3 class="text-lg font-semibold">Agregar Cliente</h3>
+                <button class="text-gray-500 hover:text-gray-700" onclick="closeModal()">✖</button>
+            </div>
+            <form method="post">
+                {% csrf_token %}
+                <div class="mt-4">
+                    <label class="text-white">{{ cliente_form.nombres.label }}</label>
+                    {{ cliente_form.nombres }}
+
+                    <label class="text-white">{{ cliente_form.telefono.label }}</label>
+                    {{ cliente_form.telefono }}
+                </div>
+                <div class="flex justify-end mt-4">
+                    <button type="submit" name="cliente_form" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                        Guardar Cliente
+                    </button>
+                    <button type="button" class="ml-2 px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400" onclick="closeModal()">
+                        Cancelar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    function openModal() {
+        document.getElementById('agregarClienteModal').classList.remove('hidden');
+    }
+
+    function closeModal() {
+        document.getElementById('agregarClienteModal').classList.add('hidden');
+    }
+</script>
+
+{% endblock %}

@@ -1,0 +1,658 @@
+{% extends 'index.html' %}
+
+{% block title %}Administración de Perfiles{% endblock %}
+
+{% block content %}
+
+{% if request.GET.success == 'perfil_actualizado' %}
+<div class="alert alert-success">
+  El perfil ha sido actualizado correctamente.
+</div>
+{% endif %}
+
+
+{% if request.GET.success == 'perfil_eliminado' %}
+<div class="alert alert-success">
+  El perfil ha sido eliminado y el estado del PerfilCuenta ha sido actualizado.
+</div>
+{% endif %}
+
+{% load humanize %}
+
+<!-- Tarjeta de cantidad de perfiles -->
+<div class="grid gap-4 mb-4 md:grid-cols-1 xl:grid-cols-4">
+  <div class="flex items-center p-4 bg-blue-100 border border-blue-500 rounded-lg shadow-xs dark:bg-blue-800 dark:border-blue-700">
+    <div class="p-3 mr-4 text-blue-500 bg-blue-200 rounded-full dark:text-blue-100 dark:bg-blue-700" aria-label="Ícono de total de perfiles">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5V4H2v16h5M7 20v-4h10v4" />
+      </svg>
+    </div>
+    <div>
+      <p class="mb-2 text-sm font-medium text-gray-600 dark:text-gray-400">Total Perfiles</p>
+      <p class="text-lg font-semibold text-gray-700 dark:text-gray-200">{{ cantidad_perfiles|intcomma|default:"No se encontraron perfiles" }}</p>
+    </div>
+  </div>
+</div>
+
+
+<div x-data="{ isModalOpen: false, modalDetails: {} }">
+  <h2 class="my-6 text-2xl font-semibold text-gray-700 dark:text-gray-200">Administración de Perfiles</h2>
+
+<!-- Modal para Cambiar Perfil -->
+<div
+  id="changeModal"
+  class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900 bg-opacity-50 hidden"
+>
+  <div class="bg-white rounded-lg shadow-lg p-6 w-96">
+    <h2 class="text-lg font-bold mb-4">Cambiar Perfil</h2>
+    <form id="confirmChangeForm" method="POST">
+      {% csrf_token %}
+      <input type="hidden" id="perfilIdChange" name="perfilId" />
+      <div class="mb-4">
+        <label for="nuevoPerfilCuenta" class="block text-sm font-medium text-gray-700">Nuevo PerfilCuenta</label>
+        <select
+          id="nuevoPerfilCuenta"
+          name="nuevoPerfilCuenta"
+          class="mt-1 block w-full border-gray-300 rounded-md shadow-sm"
+          required
+        >
+          {% for perfil_cuenta in perfiles_cuenta_disponibles %}
+           <option value="{{ perfil_cuenta.id_perfil_cuenta }}">
+              {{ perfil_cuenta.usuario }} - {{ perfil_cuenta.id_cuenta.correo_cuenta }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="mb-4">
+        <label for="nuevoUsuarioAntiguo" class="block text-sm font-medium text-gray-700">Usuario Antiguo</label>
+        <input type="text" id="nuevoUsuarioAntiguo" name="nuevoUsuarioAntiguo" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm" required />
+      </div>
+
+      <div class="mb-4">
+        <label for="nuevoPinAntiguo" class="block text-sm font-medium text-gray-700">PIN Antiguo</label>
+        <input type="number" id="nuevoPinAntiguo" name="nuevoPinAntiguo" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm" required />
+      </div>
+
+      <div class="flex justify-end">
+        <button type="button" onclick="closeChangeModal()" class="btn-cancel mr-2">Cancelar</button>
+        <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Cambiar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+
+
+    <!-- Modal para Editar -->
+    <div
+    id="editModal"
+    class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900 bg-opacity-50 hidden"
+  >
+    <div class="bg-white rounded-lg shadow-lg p-6 w-96">
+      <h2 class="text-lg font-bold mb-4">Editar Perfil</h2>
+      <form id="confirmEditForm" method="POST">
+        {% csrf_token %}
+        <input type="hidden" id="perfilIdEdit" name="perfilId" />
+        <div class="mb-4">
+          <label for="editUsuario" class="block text-sm font-medium text-gray-700">Usuario</label>
+          <input
+            type="text"
+            id="editUsuario"
+            name="usuario"
+            class="mt-1 block w-full border-gray-300 rounded-md shadow-sm"
+            required
+          />
+        </div>
+        <div class="mb-4">
+          <label for="editPin" class="block text-sm font-medium text-gray-700">PIN</label>
+          <input
+            type="number"
+            id="editPin"
+            name="pin"
+            class="mt-1 block w-full border-gray-300 rounded-md shadow-sm"
+            required
+          />
+        </div>
+        <div class="flex justify-end">
+          <button type="button" onclick="closeEditModal()" class="btn-cancel mr-2">Cancelar</button>
+          <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Guardar Cambios</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+<!-- Modal de Confirmación -->
+<div
+    id="deleteModal"
+    class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900 bg-opacity-50 hidden"
+>
+    <div class="bg-white rounded-lg shadow-lg p-6 w-96">
+        <h2 class="text-lg font-bold mb-4">Eliminar Perfil y Actualizar Valores</h2>
+        <p class="mb-4 text-sm text-gray-700">Por favor, ingresa un nuevo usuario y PIN para la cuenta anterior antes de eliminar el perfil.</p>
+        
+        <!-- Mostrar correo y contraseña -->
+        <div class="mb-4">
+          <p>
+            <strong>Correo:</strong> 
+            <span id="correoCuenta" class="text-gray-700"></span>
+            <button 
+            class="ml-2 text-blue-600 hover:text-blue-800 relative" 
+            onclick="copiarTexto('correoCuenta', this)">
+              📋
+            </button>
+          </p>
+          
+          <p>
+            <strong>Contraseña:</strong> 
+            <span id="contrasenaCuenta" class="text-gray-700"></span>
+            <button 
+            class="ml-2 text-blue-600 hover:text-blue-800 relative" 
+            onclick="copiarTexto('contrasenaCuenta', this)">
+              📋
+            </button>
+          </p>
+        </div>
+
+        <form id="confirmDeleteForm" method="POST">
+            {% csrf_token %}
+            <input type="hidden" id="perfilId" name="perfilId" />
+            
+            <div class="mb-4">
+                <label for="nuevoUsuario" class="block text-sm font-medium text-gray-700">Nuevo Usuario</label>
+                <input
+                    type="text"
+                    id="nuevoUsuario"
+                    name="nuevoUsuario"
+                    class="mt-1 block w-full border-gray-300 rounded-md shadow-sm"
+                    required
+                />
+            </div>
+            
+            <div class="mb-4">
+                <label for="nuevoPin" class="block text-sm font-medium text-gray-700">Nuevo PIN</label>
+                <input
+                    type="number"
+                    id="nuevoPin"
+                    name="nuevoPin"
+                    class="mt-1 block w-full border-gray-300 rounded-md shadow-sm"
+                    required
+                />
+            </div>
+            
+            <div class="flex justify-end">
+                <button type="button" onclick="closeModal()" class="btn-cancel mr-2">Cancelar</button>
+                <button type="submit" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">Eliminar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+  <div class="mb-4">
+    <h2 class="text-xl font-semibold text-gray-700 dark:text-gray-200">Filtrar por Servicio</h2>
+    <div class="flex space-x-4 mt-2">
+      <!-- Botón para mostrar todos los perfiles -->
+      <a href="{% url 'admin_perfiles' %}" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+        Todos
+      </a>
+      <!-- Botones para cada servicio -->
+      {% for servicio in servicios %}
+      <a href="?servicio_id={{ servicio.id_servicio }}" 
+         class="px-4 py-2 {% if servicio.id_servicio == servicio_id %}bg-green-500 text-white{% else %}bg-gray-200 text-gray-700 hover:bg-gray-300{% endif %} rounded">
+        {{ servicio.descripcion }}
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+  
+
+  <!-- Tabla de Perfiles -->
+  <div class="container px-6 mx-auto">
+    <div class="w-full overflow-hidden rounded-lg shadow-xs">
+      <div class="w-full overflow-x-auto">
+        <table class="mb-6 w-full whitespace-no-wrap">
+
+
+          <thead>
+            <tr class="text-xs font-semibold tracking-wide text-left text-gray-500 uppercase border-b bg-gray-50 dark:text-gray-400 dark:bg-gray-800">
+          
+              <th class="px-3 py-2">
+                <a href="?sort=id_perfil_cuenta__id_cuenta__id_servicio&order={% if sort == 'id_perfil_cuenta__id_cuenta__id_servicio' and order == 'asc' %}desc{% else %}asc{% endif %}">
+                  Servicio 
+                  <span class="{% if sort == 'id_perfil_cuenta__id_cuenta__id_servicio' %} text-blue-600 {% else %} text-gray-500 {% endif %}">
+                    {% if sort == 'id_perfil_cuenta__id_cuenta__id_servicio' and order == 'asc' %}
+                      🔼
+                    {% else %}
+                      🔽
+                    {% endif %}
+                  </span>
+                </a>
+              </th>
+          
+              <th class="px-3 py-2">
+                <!-- Enlace para ordenamiento -->
+                <div class="flex flex-col">
+                  <a href="?sort=id_cliente__nombres&order={% if sort == 'id_cliente__nombres' and order == 'asc' %}desc{% else %}asc{% endif %}">
+                    Cliente
+                    <span class="{% if sort == 'id_cliente__nombres' %} text-blue-600 {% else %} text-gray-500 {% endif %}">
+                      {% if sort == 'id_cliente__nombres' and order == 'asc' %}
+                        🔼
+                      {% else %}
+                        🔽
+                      {% endif %}
+                    </span>
+                  </a>
+                  <!-- Campo de búsqueda -->
+                  <div class="input-container mt-2">
+                    <input type="text" id="searchCliente" placeholder="Buscar cliente..." oninput="filterClientes()" required>
+                    <div class="underline"></div>
+                  </div>
+                </div>
+              </th>
+              
+          
+              <th class="px-3 py-2">
+                <a href="?sort=id_perfil_cuenta__usuario&order={% if sort == 'id_perfil_cuenta__usuario' and order == 'asc' %}desc{% else %}asc{% endif %}">
+                  Perfil 
+                  <span class="{% if sort == 'id_perfil_cuenta__usuario' %} text-blue-600 {% else %} text-gray-500 {% endif %}">
+                    {% if sort == 'id_perfil_cuenta__usuario' and order == 'asc' %}
+                      🔼
+                    {% else %}
+                      🔽
+                    {% endif %}
+                  </span>
+                </a>
+              </th>
+          
+              <th class="px-3 py-2">
+                <a href="?sort=fech_inicio&order={% if sort == 'fech_inicio' and order == 'asc' %}desc{% else %}asc{% endif %}">
+                  Fecha de Creación 
+                  <span class="{% if sort == 'fech_inicio' %} text-blue-600 {% else %} text-gray-500 {% endif %}">
+                    {% if sort == 'fech_inicio' and order == 'asc' %}
+                      🔼
+                    {% else %}
+                      🔽
+                    {% endif %}
+                  </span>
+                </a>
+              </th>
+          
+<!-- Fecha de caducidad con botón -->
+<th class="px-3 py-2">
+  <a href="?sort=fech_fin&order={% if sort == 'fech_fin' and order == 'asc' %}desc{% else %}asc{% endif %}">
+    Fecha de Caducidad
+    <span class="{% if sort == 'fech_fin' %} text-blue-600 {% else %} text-gray-500 {% endif %}">
+      {% if sort == 'fech_fin' and order == 'asc' %}
+        🔼
+      {% else %}
+        🔽
+      {% endif %}
+    </span>
+  </a>
+</th>
+
+          
+              <th class="px-3 py-2">
+                <label for="filtroVencimiento" class="block text-xs font-semibold text-gray-500">Estado de Vencimiento</label>
+                <select 
+                  id="filtroVencimiento" 
+                  class="mt-1 block w-full border-gray-300 text-gray-700 text-sm rounded shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-300 focus:ring-opacity-50" 
+                  onchange="location.href = '?filtro_vencimiento=' + this.value"
+                >
+                  <option value="todos" {% if filtro_vencimiento == 'todos' %} selected {% endif %}>Todos</option>
+                  <option value="hoy" {% if filtro_vencimiento == 'hoy' %} selected {% endif %}>Vence Hoy</option>
+                  <option value="manana" {% if filtro_vencimiento == 'manana' %} selected {% endif %}>Vence Mañana</option>
+                  <option value="vencidos" {% if filtro_vencimiento == 'vencidos' %} selected {% endif %}>Vencidos</option>
+                </select>
+              </th>
+          
+
+          
+              <th class="px-3 py-2">
+                Acciones
+              </th>
+            </tr>
+          </thead>
+          
+
+
+          
+          
+          <tbody class="bg-white divide-y dark:divide-gray-700 dark:bg-gray-800">
+            {% for perfil in perfiles %}
+            <tr class="text-gray-700 dark:text-gray-400 text-xs">
+              <!-- Servicio -->
+              <td class="px-2 py-1">
+                <p class="font-semibold">{{ perfil.id_perfil_cuenta.id_cuenta.id_servicio }}</p>
+                <p class="text-gray-500">{{ perfil.id_servicio.descripcion }}</p>
+              </td>
+          
+              <!-- Cliente -->
+              <td class="px-2 py-1">
+                <p class="font-semibold">{{ perfil.id_cliente.nombres }}</p>
+                <p class="text-gray-500">{{ perfil.id_cliente.telefono }}</p>
+              </td>
+          
+              <!-- Perfil -->
+              <td class="px-2 py-1">
+                <p class="font-semibold">{{ perfil.id_perfil_cuenta.usuario }}</p>
+                <p class="text-gray-500">PIN: {{ perfil.id_perfil_cuenta.pin }}</p>
+              </td>
+          
+              <!-- Fecha de creación -->
+              <td class="px-2 py-1">{{ perfil.fech_inicio|date:"d-m-Y" }}</td>
+          
+              <!-- Fecha de caducidad -->
+<!-- Fecha de caducidad -->
+<td class="px-2 py-1">
+  <div class="flex items-center justify-between">
+    <span id="fecha-caducidad-{{ perfil.id_perfil }}">{{ perfil.fech_fin|date:"d-m-Y" }}</span>
+    <!-- Botón para agregar días -->
+    <button 
+      class="ml-4 px-2 py-1 text-sm bg-green-500 text-white rounded hover:bg-green-600" 
+      onclick="addDay(
+        '{{ perfil.id_perfil }}', 
+        '{{ perfil.id_cliente.nombres }}', 
+        '{{ perfil.id_perfil_cuenta.usuario }}', 
+        '{{ perfil.id_cliente.telefono }}'
+      )"
+    >
+      +1 Día
+    </button>
+  </div>
+</td>
+
+ 
+              <!-- Estado de vencimiento -->
+              <td class="px-4 py-3 text-sm">
+                <!-- Estado de vencimiento con enlace a WhatsApp -->
+                <a
+                  href="{% if perfil.estado_vencimiento == 'Vence mañana' %}https://api.whatsapp.com/send?phone={{ perfil.id_cliente.telefono }}&text={{ '¡Atención! ⚠️ *Mañana caduca su cuenta de ' }}{{ perfil.id_perfil_cuenta.id_cuenta.id_servicio.descripcion }}{{ '* ⚠️:%0A📌 *Cuentas ' }}{{ perfil.id_perfil_cuenta.id_cuenta.id_servicio.descripcion }}{{ ' DigitalStream original*%0A📧 *Correo:* ' }}{{ perfil.id_perfil_cuenta.id_cuenta.correo_cuenta|urlencode }}{{ '%0A👤 *Perfil:* ' }}{{ perfil.id_perfil_cuenta.usuario }}{{ '%0A🔢 *Pin:* ' }}{{ perfil.id_perfil_cuenta.pin }}{% elif perfil.estado_vencimiento == 'Vence hoy' %}https://api.whatsapp.com/send?phone={{ perfil.id_cliente.telefono }}&text={{ '¡Atención! ⚠️ *Hoy caduca su cuenta de ' }}{{ perfil.id_perfil_cuenta.id_cuenta.id_servicio.descripcion }}{{ '* ⚠️:%0A📌 *Cuentas ' }}{{ perfil.id_perfil_cuenta.id_cuenta.id_servicio.descripcion }}{{ ' DigitalStream original*%0A📧 *Correo:* ' }}{{ perfil.id_perfil_cuenta.id_cuenta.correo_cuenta|urlencode }}{{ '%0A👤 *Perfil:* ' }}{{ perfil.id_perfil_cuenta.usuario }}{{ '%0A🔢 *Pin:* ' }}{{ perfil.id_perfil_cuenta.pin }}{% elif perfil.estado_vencimiento|slice:':8' == 'Vencido ' %}{% with vencidos_dias=perfil.estado_vencimiento|slice:'-3' %}https://api.whatsapp.com/send?phone={{ perfil.id_cliente.telefono }}&text={{ '¡Atención! ⚠️ *Su cuenta venció hace ' }}{{ vencidos_dias }}{{ ' días en ' }}{{ perfil.id_perfil_cuenta.id_cuenta.id_servicio.descripcion }}{{ '* ⚠️:%0A📌 *Cuentas ' }}{{ perfil.id_perfil_cuenta.id_cuenta.id_servicio.descripcion }}{{ ' DigitalStream original*%0A📧 *Correo:* ' }}{{ perfil.id_perfil_cuenta.id_cuenta.correo_cuenta|urlencode }}{{ '%0A👤 *Perfil:* ' }}{{ perfil.id_perfil_cuenta.usuario }}{{ '%0A🔢 *Pin:* ' }}{{ perfil.id_perfil_cuenta.pin }}{% endwith %}{% endif %}"
+                  target="_blank"
+                  class="hover:underline 
+                    {% if perfil.estado_vencimiento == 'Vence mañana' %}text-blue-500
+                    {% elif perfil.estado_vencimiento == 'Vence hoy' %}text-yellow-500
+                    {% elif perfil.estado_vencimiento|slice:':8' == 'Vencido ' %}text-red-600
+                    {% elif perfil.dias_restantes > 5 %}text-green-600
+                    {% endif %}"
+                >
+                  {{ perfil.estado_vencimiento }}
+                </a>
+              
+                {% if perfil.estado_vencimiento == 'Vence hoy' or perfil.estado_vencimiento|slice:':8' == 'Vencido ' %}
+                  <!-- Ícono de advertencia con enlace a WhatsApp -->
+                  <a 
+                    href="https://api.whatsapp.com/send?phone={{ perfil.id_cliente.telefono }}&text={{ '¡Importante! ⚠️ Su cuenta será eliminada en breve por falta de pago. Por favor, confirme su pago lo antes posible para evitar la eliminación. ¡Gracias!'|urlencode }}"
+                    target="_blank"
+                    class="ml-2"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-red-600 hover:text-red-800" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 16.5A2.5 2.5 0 0118.5 19h-13A2.5 2.5 0 013 16.5V7.5A2.5 2.5 0 015.5 5h13A2.5 2.5 0 0121 7.5v9z" />
+                    </svg>
+                  </a>
+                {% endif %}
+              </td>
+          
+              <!-- Acciones -->
+<td class="px-2 py-1">
+  <div class="flex items-center space-x-2">
+    
+    <!-- Ver detalles -->
+    <button 
+      @click="isModalOpen = true; modalDetails = { usuario: '{{ perfil.id_perfil_cuenta.usuario }}', correo: '{{ perfil.id_perfil_cuenta.id_cuenta.correo_cuenta }}', contraseña: '{{ perfil.id_perfil_cuenta.id_cuenta.contrasena }}', pin: '{{ perfil.id_perfil_cuenta.pin }}' }"
+      class="text-blue-600 hover:text-blue-800 text-2xl">
+      🔍
+    </button>
+
+    <!-- Editar perfil -->
+    <button 
+      onclick="openEditModal('{{ perfil.id_perfil }}', '{{ perfil.id_perfil_cuenta.usuario }}', '{{ perfil.id_perfil_cuenta.pin }}')" 
+      class="text-yellow-500 hover:text-yellow-700 text-2xl">
+      ✏️
+    </button>
+
+    <!-- Eliminar perfil -->
+    <button 
+    onclick="openDeleteModal('{{ perfil.id_perfil }}', '{{ perfil.id_perfil_cuenta.id_cuenta.correo_cuenta }}', '{{ perfil.id_perfil_cuenta.id_cuenta.contrasena }}')" 
+      class="text-red-500 hover:text-red-700 text-2xl">
+      ❌
+    </button>
+
+    <!-- Cambiar perfil -->
+    <button 
+      onclick="openChangeModal('{{ perfil.id_perfil }}', '{{ perfil.id_perfil_cuenta.usuario }}', '{{ perfil.id_perfil_cuenta.pin }}')" 
+      class="text-green-500 hover:text-green-700 text-2xl">
+      🔄
+    </button>
+  </div>
+</td>
+
+            </tr>
+            {% endfor %}
+          </tbody>
+
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Detalles -->
+  <div
+    x-show="isModalOpen"
+    class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900 bg-opacity-50"
+  >
+    <div class="bg-white rounded-lg shadow-lg p-6 w-96">
+      <h2 class="text-lg font-bold mb-4">Detalles del Perfil</h2>
+      <p><strong>Correo:</strong> <span x-text="modalDetails.correo"></span></p>
+      <p><strong>Contraseña:</strong> <span x-text="modalDetails.contraseña"></span></p>
+      <p><strong>Usuario:</strong> <span x-text="modalDetails.usuario"></span></p>
+      <p><strong>Pin:</strong> <span x-text="modalDetails.pin"></span></p>
+      <button
+        @click="isModalOpen = false"
+        class="mt-4 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+      >
+        Cerrar
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+function openDeleteModal(perfilId, correo, contrasena) {
+    // Mostrar el modal
+    document.getElementById("deleteModal").classList.remove("hidden");
+
+    // Configurar el formulario
+    document.getElementById("perfilId").value = perfilId;
+    document.getElementById("confirmDeleteForm").action = `/eliminar_perfil/${perfilId}/`;
+
+    // Mostrar el correo y la contraseña
+    document.getElementById("correoCuenta").textContent = correo;
+    document.getElementById("contrasenaCuenta").textContent = contrasena;
+}
+
+  function closeModal() {
+    // Ocultar el modal
+    document.getElementById("deleteModal").classList.add("hidden");
+  }
+  function openEditModal(perfilId, usuario, pin) {
+  document.getElementById("editModal").classList.remove("hidden");
+  document.getElementById("perfilIdEdit").value = perfilId;
+  document.getElementById("editUsuario").value = usuario;
+  document.getElementById("editPin").value = pin;
+
+  // Actualiza la acción del formulario para que coincida con la URL definida
+  document.getElementById("confirmEditForm").action = `/perfiles/editar/${perfilId}/`;
+}
+  function closeEditModal() {
+    document.getElementById("editModal").classList.add("hidden");
+  }
+
+
+  function copiarTexto(idElemento, boton) {
+  const texto = document.getElementById(idElemento).textContent;
+  navigator.clipboard.writeText(texto)
+    .then(() => {
+      mostrarNotificacion(boton, 'Copiado');
+    })
+    .catch(err => {
+      console.error('Error al copiar: ', err);
+    });
+}
+
+function mostrarNotificacion(boton, mensaje) {
+  // Crear el elemento de notificación
+  const notificacion = document.createElement('span');
+  notificacion.textContent = mensaje;
+  notificacion.classList.add('notificacion');
+  boton.appendChild(notificacion);
+
+  // Remover la notificación después de 2 segundos
+  setTimeout(() => {
+    notificacion.remove();
+  }, 500);
+}
+
+
+</script>
+
+
+<script>
+  function openChangeModal(perfilId, usuario, pin) {
+    document.getElementById("changeModal").classList.remove("hidden");
+
+    // Asignar valores a los campos del formulario
+    document.getElementById("perfilIdChange").value = perfilId;
+    document.getElementById("nuevoUsuarioAntiguo").value = usuario;
+    document.getElementById("nuevoPinAntiguo").value = pin;
+
+    // Asignar la URL de la acción del formulario
+    document.getElementById("confirmChangeForm").action = `/cambiar_perfil/${perfilId}/`;
+  }
+
+  function closeChangeModal() {
+    document.getElementById("changeModal").classList.add("hidden");
+  }
+</script>
+
+
+<script>
+  function filterClientes() {
+    // Obtener el valor del campo de búsqueda
+    const input = document.getElementById("searchCliente").value.toLowerCase();
+    
+    // Obtener todas las filas de la tabla (excepto el encabezado)
+    const rows = document.querySelectorAll("tbody tr");
+
+    rows.forEach(row => {
+      // Buscar en la columna "Cliente" (ajusta el índice según tu tabla)
+      const cliente = row.querySelector("td:nth-child(2)").textContent.toLowerCase();
+
+      // Mostrar u ocultar la fila según el texto buscado
+      if (cliente.includes(input)) {
+        row.style.display = ""; // Mostrar fila
+      } else {
+        row.style.display = "none"; // Ocultar fila
+      }
+    });
+  }
+</script>
+
+<style>
+  .input-container {
+  width: 100%;
+  margin-top: 5px;
+}
+
+.input-container input[type="text"] {
+  font-size: 14px;
+  width: 100%;
+  border: none;
+  border-bottom: 2px solid #ccc;
+  padding: 5px 0;
+  background-color: transparent;
+  outline: none;
+}
+
+.input-container .label {
+  position: absolute;
+  top: 0;
+  left: 0;
+  font-size: 12px;
+  color: #ccc;
+  transition: all 0.3s ease;
+  pointer-events: none;
+}
+
+.input-container input[type="text"]:focus ~ .label,
+.input-container input[type="text"]:valid ~ .label {
+  top: -16px;
+  font-size: 10px;
+}
+
+.input-container .underline {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  width: 100%;
+  transform: scaleX(0);
+  transition: all 0.3s ease;
+}
+
+.input-container input[type="text"]:focus ~ .underline,
+.input-container input[type="text"]:valid ~ .underline {
+  transform: scaleX(1);
+}
+
+</style>
+
+
+<script>
+function addDay(perfilId, cliente, perfil, telefono) {
+  const confirmation = confirm(`¿Seguro que quieres agregar 1 día al perfil de ${cliente} (${perfil})?`);
+  if (confirmation) {
+    fetch(`/agregar_dia/${perfilId}/`, {
+      method: 'POST',
+      headers: {
+        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+        'Content-Type': 'application/json',
+      },
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        alert(`${data.message}. La nueva fecha de caducidad es: ${data.nueva_fecha}`);
+        
+        // Actualizar la fecha de caducidad en la tabla
+        const fechaElement = document.getElementById(`fecha-caducidad-${perfilId}`);
+        if (fechaElement) {
+          fechaElement.textContent = data.nueva_fecha;
+        }
+
+        // Preguntar si quiere enviar mensaje de WhatsApp
+        const sendMessage = confirm(`¿Quieres enviar un mensaje de notificación de la nueva fecha de caducidad para el perfil de ${cliente} (${perfil})?`);
+        if (sendMessage) {
+          const mensaje = `Para compensar las molestias, la fecha de caducidad ha sido extendida:%0A%0A📌 *Cuentas DigitalStream*%0A📧 *Correo:* correo_prueba@gmail.com%0A👤 *Perfil:* ${encodeURIComponent(perfil)}%0A🔢 *Pin:* 1234%0A⏱️ *Fecha de caducidad:* ${encodeURIComponent(data.nueva_fecha)}`;
+          const whatsappUrl = `https://api.whatsapp.com/send?phone=${telefono}&text=${mensaje}`;
+          window.open(whatsappUrl, '_blank');
+        }
+
+      } else {
+        alert(data.message || 'Error al agregar el día.');
+      }
+    })
+    .catch(error => {
+      console.error('Error:', error);
+      alert('Ocurrió un error al intentar agregar el día.');
+    });
+  }
+}
+
+
+
+
+</script>
+
+{% endblock %}

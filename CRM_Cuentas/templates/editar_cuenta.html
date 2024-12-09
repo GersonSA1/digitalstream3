@@ -1,0 +1,72 @@
+{% extends 'index.html' %}
+
+{% block title %}Crear Cuenta{% endblock %}
+
+{% block content %}
+<div class="container px-6 mx-auto">
+    <h2 class="my-6 text-2xl font-semibold text-gray-700 dark:text-gray-200">Editar Cuenta</h2>
+    <form method="POST" class="bg-white p-6 rounded-lg shadow-md dark:bg-gray-800">
+        {% csrf_token %}
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Correo Cuenta -->
+            <div class="flex flex-col">
+                <label for="correo_cuenta" class="text-gray-700 dark:text-gray-200">Correo cuenta:</label>
+                {{ form.correo_cuenta }}
+            </div>
+
+            <!-- Contraseña -->
+            <div class="flex flex-col">
+                <label for="contrasena" class="text-gray-700 dark:text-gray-200">Contraseña:</label>
+                {{ form.contrasena }}
+            </div>
+
+            <!-- Fecha Inicio -->
+            <div class="flex flex-col">
+                <label for="fech_inicio" class="text-gray-700 dark:text-gray-200">Fecha inicio:</label>
+                {{ form.fech_inicio }}
+            </div>
+
+            <!-- Fecha Fin -->
+            <div class="flex flex-col">
+                <label for="fech_fin" class="text-gray-700 dark:text-gray-200">Fecha fin:</label>
+                {{ form.fech_fin }}
+            </div>
+
+            <!-- Mes -->
+            <div class="flex flex-col">
+                <label for="mes" class="text-gray-700 dark:text-gray-200">Mes:</label>
+                {{ form.mes }}
+            </div>
+
+            <!-- Id Tipo Cuenta -->
+            <div class="flex flex-col">
+                <label for="id_tipo_cuenta" class="text-gray-700 dark:text-gray-200">Id tipo cuenta:</label>
+                {{ form.id_tipo_cuenta }}
+            </div>
+
+            <!-- Id Servicio -->
+            <div class="flex flex-col">
+                <label for="id_servicio" class="text-gray-700 dark:text-gray-200">Id servicio:</label>
+                {{ form.id_servicio }}
+            </div>
+
+            <!-- Id Grupo -->
+            <div class="flex flex-col">
+                <label for="id_grupo" class="text-gray-700 dark:text-gray-200">Id grupo:</label>
+                {{ form.id_grupo }}
+            </div>
+
+            <!-- Id Tipo Dispositivo -->
+            <div class="flex flex-col">
+                <label for="id_tipo_dispositivo" class="text-gray-700 dark:text-gray-200">Id tipo dispositivo:</label>
+                {{ form.id_tipo_dispositivo }}
+            </div>
+        </div>
+
+        <!-- Botón para guardar -->
+        <div class="flex justify-end mt-6">
+            <button type="submit" class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">Guardar</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

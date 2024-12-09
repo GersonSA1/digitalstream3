@@ -1,0 +1,468 @@
+{% extends 'index.html' %}
+
+{% block title %}Planes Disponibles{% endblock %}
+
+{% block content %}
+<h2 class="my-6 text-2xl font-semibold text-gray-700 dark:text-gray-200">Planes Disponibles</h2>
+
+<!-- Tarjetas de perfiles sin asignar -->
+<div class="grid gap-6 mb-8 md:grid-cols-2 xl:grid-cols-4">
+  {% for perfil in perfiles_disponibles %}
+  <div class="flex items-center justify-between p-4 bg-blue-100 rounded-lg shadow-md dark:bg-blue-800">
+    <div>
+      <h4 class="text-lg font-semibold text-blue-700 dark:text-blue-300">{{ perfil.id_cuenta__id_servicio__descripcion }}</h4>
+      <p class="text-sm text-blue-500 dark:text-blue-200">Perfiles sin asignar: {{ perfil.total }}</p>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+
+
+
+<div class="mb-4">
+  <h2 class="text-xl font-semibold text-gray-700 dark:text-gray-200">Filtrar por Servicio</h2>
+  <div class="flex space-x-4 mt-2">
+      <!-- Botón para mostrar todos los planes -->
+      <a href="{% url 'planes' %}" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+          Todos
+      </a>
+      <!-- Botones para cada servicio -->
+      {% for servicio in servicios %}
+      <a href="?servicio_id={{ servicio.id_servicio }}" 
+         class="px-4 py-2 {% if servicio.id_servicio == servicio_id %}bg-green-500 text-white{% else %}bg-gray-200 text-gray-700 hover:bg-gray-300{% endif %} rounded">
+          {{ servicio.descripcion }}
+      </a>
+      {% endfor %}
+  </div>
+</div>
+
+<div class="grid gap-6 mb-8 md:grid-cols-2 xl:grid-cols-4">
+  {% for plan in planes %}
+  <div class="flex flex-col items-start p-4 bg-white rounded-lg shadow-xs dark:bg-gray-800">
+    <h4 class="text-lg font-semibold text-gray-700 dark:text-gray-200">{{ plan.descripcion }}</h4>
+    <p class="text-sm text-gray-600 dark:text-gray-400 mt-2">
+      <strong>Dispositivos:</strong> {{ plan.numero_dispositivos }}<br>
+      <strong>Duración:</strong> {{ plan.numero_meses }} meses
+    </p>
+    <p class="mt-4 text-lg font-bold text-gray-800 dark:text-gray-100">${{ plan.precio }}</p>
+    <a 
+    onclick="openModal({{ plan.id_plan }}, '{{ plan.descripcion }}')"
+    class="mt-4 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 cursor-pointer"
+  >
+    Vender
+  </a>
+  
+  </div>
+
+<!-- Modal para Vender -->
+<div id="modalVender" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 hidden">
+  <div class="bg-white rounded-lg shadow-lg p-6 w-96">
+    <h2 id="modalTitle" class="text-lg font-bold text-gray-700"></h2>
+    <form id="venderForm" method="POST">
+      {% csrf_token %}
+      <input type="hidden" id="plan_id" name="plan_id" value="">
+      <input type="hidden" id="numero_dispositivos" value="{{ plan.numero_dispositivos }}">
+
+
+      <!-- Cliente -->
+      <label for="id_cliente" class="block text-sm font-medium text-gray-700 mt-4">Cliente</label>
+      <select id="id_cliente" name="id_cliente" class="form-select mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+        {% for cliente in form.fields.id_cliente.queryset %}
+          <option value="{{ cliente.id_cliente }}">{{ cliente.nombres }}</option>
+        {% endfor %}
+      </select>
+              <!-- Botón "Más" -->
+              <button type="button" class="px-3 py-2 bg-blue-500 text-white rounded hover:bg-blue-600" onclick="openAddClientModal()">+</button>
+    
+      <!-- Tipo de Dispositivo -->
+      <label for="id_tipo_dispositivo" class="block text-sm font-medium text-gray-700 mt-4">Tipo de Dispositivo</label>
+      <select id="id_tipo_dispositivo" name="id_tipo_dispositivo" class="form-select mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+        {% for dispositivo in form.fields.id_tipo_dispositivo.queryset %}
+          <option value="{{ dispositivo.id_tipo_dispositivo }}">{{ dispositivo.descripcion }}</option>
+        {% endfor %}
+      </select>
+
+<!-- Perfiles No Asignados -->
+<label class="block text-sm font-medium text-gray-700 mt-4">Perfiles No Asignados</label>
+<div id="perfilesContainer" class="space-y-2">
+  <!-- Aquí se generarán dinámicamente los selects -->
+</div>
+<p id="errorMessage" class="text-red-500 hidden">No puedes seleccionar el mismo perfil más de una vez.</p>
+
+    
+      <!-- Notas -->
+      <label for="notas" class="block text-sm font-medium text-gray-700 mt-4">Notas</label>
+      <input type="text" id="notas" name="notas" class="form-input mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+      
+      <!-- Botones -->
+      <div class="mt-4 flex justify-end">
+        <button type="button" class="btn-cancel mr-2" onclick="closeModal()">Cancelar</button>
+        <button type="submit" class="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700">Guardar</button>
+      </div>
+    </form>
+    
+  </div>
+</div>
+
+<!-- Modal para Cliente -->
+
+<div id="modalAddClient" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 hidden">
+  <div class="bg-white rounded-lg shadow-lg p-6 w-96">
+    <h2 class="text-lg font-bold text-gray-700 mb-4">Agregar Cliente</h2>
+    <form id="addClientForm" method="POST">
+      {% csrf_token %}
+      <label for="nombres" class="block text-sm font-medium text-gray-700">Nombre</label>
+      <input type="text" id="nombres" name="nombres" class="form-input mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+
+      <label for="telefono" class="block text-sm font-medium text-gray-700 mt-4">Teléfono</label>
+      <input type="text" id="telefono" name="telefono" class="form-input mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+
+      <!-- Botones -->
+      <div class="mt-4 flex justify-end">
+        <button type="button" class="btn-cancel mr-2" onclick="closeAddClientModal()">Cancelar</button>
+        <button type="submit" class="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700">Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+
+<!-- Modal para Editar Usuario y PIN -->
+<div id="editModal" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 hidden">
+  <div class="bg-white rounded-lg shadow-lg p-6 w-96">
+    <h2 class="text-lg font-bold text-gray-700 mb-4">Editar Perfil</h2>
+    <form id="editProfileForm">
+      <div class="mb-4">
+        <label for="usuario" class="block text-sm font-medium text-gray-700">Usuario</label>
+        <input type="text" id="usuario" name="usuario" class="form-input mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+      </div>
+      <div class="mb-4">
+        <label for="pin" class="block text-sm font-medium text-gray-700">PIN</label>
+        <input type="text" id="pin" name="pin" class="form-input mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+      </div>
+      <div class="flex justify-end">
+        <button type="button" class="btn-cancel mr-2" onclick="closeEditModal()">Cancelar</button>
+        <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+
+
+{% endfor %}
+
+
+
+
+
+
+
+
+<script>
+  let planId = null; // Variable global para almacenar el ID del plan seleccionado
+
+  function openModal(planIdValue, planName) {
+    const modal = document.getElementById('modalVender');
+    const modalTitle = document.getElementById('modalTitle');
+    const planIdField = document.getElementById('plan_id'); // Campo oculto para plan_id
+    const perfilesContainer = document.getElementById('perfilesContainer'); // Contenedor de selects dinámicos
+    const errorMessage = document.getElementById('errorMessage'); // Mensaje de error
+
+    // Asigna el ID del plan al campo oculto y a la variable global
+    planIdField.value = planIdValue;
+    planId = planIdValue;
+
+    modalTitle.innerText = `Vender ${planName}`;
+    perfilesContainer.innerHTML = ''; // Limpia los selects previos
+    errorMessage.classList.add('hidden'); // Oculta el mensaje de error
+
+    // Realiza el fetch para cargar datos dinámicos
+    fetch(`/planes/vender/${planIdValue}/`)
+      .then((response) => {
+        if (!response.ok) throw new Error('Error al cargar los datos del modal.');
+        return response.json();
+      })
+      .then((data) => {
+        const { clientes, dispositivos, perfiles, plan } = data;
+        const numeroDispositivos = plan.numero_dispositivos;
+
+        // Poblar el select de clientes
+        const clienteSelect = document.getElementById('id_cliente');
+        clienteSelect.innerHTML = clientes
+          .map(
+            (cliente) =>
+              `<option value="${cliente.id_cliente}">${cliente.nombres}</option>`
+          )
+          .join('');
+
+        // Poblar el select de dispositivos
+        const dispositivoSelect = document.getElementById('id_tipo_dispositivo');
+        dispositivoSelect.innerHTML = dispositivos
+          .map(
+            (dispositivo) =>
+              `<option value="${dispositivo.id_tipo_dispositivo}">${dispositivo.descripcion}</option>`
+          )
+          .join('');
+
+  // Generar selects dinámicos para perfiles con un botón para editar
+  for (let i = 0; i < numeroDispositivos; i++) {
+    const wrapper = document.createElement('div'); // Contenedor para el select y el botón
+    wrapper.classList.add('flex', 'items-center', 'space-x-2', 'mt-1');
+
+    // Crear el select
+    const select = document.createElement('select');
+    select.name = `id_perfil_cuenta_${i}`;
+    select.classList.add(
+      'form-select',
+      'block',
+      'w-full',
+      'rounded-md',
+      'border-gray-300',
+      'shadow-sm'
+    );
+    select.dataset.index = i;
+
+    select.innerHTML =
+      `<option value="">Selecciona un perfil</option>` +
+      perfiles
+        .map(
+          (perfil) =>
+            `<option value="${perfil.id_perfil_cuenta}" data-usuario="${perfil.usuario}" data-pin="${perfil.pin}">${perfil.usuario} - ${perfil.id_cuenta__correo_cuenta}</option>`
+        )
+        .join('');
+
+    // Botón para editar el perfil
+    const editButton = document.createElement('button');
+    editButton.type = 'button';
+    editButton.textContent = 'Editar';
+    editButton.classList.add('px-3', 'py-2', 'bg-blue-500', 'text-white', 'rounded', 'hover:bg-blue-600');
+    editButton.addEventListener('click', () => openEditModal(select));
+
+    // Añadir select y botón al contenedor
+    wrapper.appendChild(select);
+    wrapper.appendChild(editButton);
+
+    // Validar perfiles duplicados
+    select.addEventListener('change', () => {
+      const selectedValues = Array.from(
+        perfilesContainer.querySelectorAll('select')
+      )
+        .map((s) => s.value)
+        .filter((v) => v !== ''); // Excluye valores vacíos
+
+      if (new Set(selectedValues).size !== selectedValues.length) {
+        errorMessage.classList.remove('hidden');
+      } else {
+        errorMessage.classList.add('hidden');
+      }
+    });
+
+    perfilesContainer.appendChild(wrapper);
+  }
+
+      })
+      .catch((error) => {
+        console.error('Error al abrir el modal:', error);
+      });
+
+    modal.classList.remove('hidden');
+  }
+
+  document
+    .getElementById('venderForm')
+    .addEventListener('submit', function (event) {
+      event.preventDefault();
+
+      const submitButton = this.querySelector('button[type="submit"]');
+      submitButton.disabled = true; // Desactiva el botón para prevenir envíos duplicados
+
+      const perfilesContainer = document.getElementById('perfilesContainer');
+      const selectedProfiles = Array.from(
+        perfilesContainer.querySelectorAll('select')
+      )
+        .map((select) => select.value)
+        .filter((value) => value !== ''); // Excluye valores vacíos
+
+      const numeroDispositivos = perfilesContainer.childElementCount; // Cuenta los selects
+
+      // Validar número de perfiles seleccionados
+      if (selectedProfiles.length !== numeroDispositivos) {
+        alert(`Debes seleccionar exactamente ${numeroDispositivos} perfiles.`);
+        submitButton.disabled = false;
+        return;
+      }
+
+      // Validar perfiles únicos
+      if (new Set(selectedProfiles).size !== selectedProfiles.length) {
+        alert('No puedes seleccionar el mismo perfil más de una vez.');
+        submitButton.disabled = false;
+        return;
+      }
+
+      const formData = new FormData(this);
+
+          // *** Aquí añadimos los valores editados ***
+    Array.from(perfilesContainer.querySelectorAll('select')).forEach((select) => {
+      const selectedOption = select.options[select.selectedIndex];
+      if (selectedOption.dataset.usuario) {
+        formData.append(`usuario_${selectedOption.value}`, selectedOption.dataset.usuario);
+      }
+      if (selectedOption.dataset.pin) {
+        formData.append(`pin_${selectedOption.value}`, selectedOption.dataset.pin);
+      }
+    });
+
+      // Añadir perfiles al FormData
+      selectedProfiles.forEach((perfilId, index) => {
+        formData.append(`id_perfil_cuenta_${index}`, perfilId);
+      });
+
+      fetch(`/planes/vender/${planId}/`, {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')
+            .value,
+        },
+      })
+        .then((response) => response.json())
+        .then((data) => {
+          if (data.success) {
+            alert(data.message || 'Operación realizada con éxito.');
+            closeModal();
+          } else {
+            alert(`Error: ${data.error}`);
+          }
+        })
+        .catch((error) => {
+          console.error('Error al enviar el formulario:', error);
+          alert('Ocurrió un error al enviar la solicitud.');
+        })
+        .finally(() => {
+          submitButton.disabled = false; // Rehabilita el botón después de la solicitud
+        });
+    });
+
+  function closeModal() {
+    const modal = document.getElementById('modalVender');
+    modal.classList.add('hidden');
+  }
+
+
+
+
+  let currentSelect = null; // Variable para rastrear el select que se está editando
+
+function openEditModal(select) {
+  currentSelect = select; // Guarda el select actual
+  const selectedOption = select.options[select.selectedIndex]; // Obtén la opción seleccionada
+  const usuario = selectedOption.dataset.usuario || ''; // Usuario actual
+  const pin = selectedOption.dataset.pin || ''; // PIN actual
+
+  // Rellena los campos del modal
+  document.getElementById('usuario').value = usuario;
+  document.getElementById('pin').value = pin;
+
+  // Muestra el modal
+  document.getElementById('editModal').classList.remove('hidden');
+}
+
+function closeEditModal() {
+  document.getElementById('editModal').classList.add('hidden'); // Oculta el modal
+  currentSelect = null; // Limpia la referencia al select
+}
+
+// Guardar los cambios en el modal
+document.getElementById('editProfileForm').addEventListener('submit', function (event) {
+  event.preventDefault();
+
+  if (!currentSelect) return;
+
+  // Obtén los valores ingresados
+  const usuario = document.getElementById('usuario').value;
+  const pin = document.getElementById('pin').value;
+
+  // Actualiza la opción seleccionada en el select con los nuevos valores
+  const selectedOption = currentSelect.options[currentSelect.selectedIndex];
+  selectedOption.dataset.usuario = usuario;
+  selectedOption.dataset.pin = pin;
+  selectedOption.textContent = `${usuario} (Editado)`; // Actualiza el texto visible
+
+  // Cierra el modal
+  closeEditModal();
+});
+
+
+
+
+
+
+
+
+</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+<script>
+function openAddClientModal() {
+  const modal = document.getElementById('modalAddClient');
+  modal.classList.remove('hidden');
+}
+
+function closeAddClientModal() {
+  const modal = document.getElementById('modalAddClient');
+  modal.classList.add('hidden');
+}
+
+document.getElementById('addClientForm').addEventListener('submit', function(event) {
+  event.preventDefault();
+  const formData = new FormData(this);
+
+  fetch('/clientes/agregar/', {
+    method: 'POST',
+    body: formData,
+    headers: {
+      'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value, // Agrega CSRF Token
+    },
+  })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        // Agregar el nuevo cliente al select
+        const clienteSelect = document.getElementById('id_cliente');
+        const option = document.createElement('option');
+        option.value = data.cliente.id_cliente;
+        option.textContent = data.cliente.nombres;
+        clienteSelect.appendChild(option);
+
+        // Seleccionar automáticamente el cliente agregado
+        clienteSelect.value = data.cliente.id_cliente;
+
+        // Cerrar el modal
+        closeAddClientModal();
+      } else {
+        alert('Error al agregar cliente: ' + data.error);
+      }
+    })
+    .catch(error => {
+      console.error('Error al agregar cliente:', error);
+    });
+});
+
+</script>
+
+
+</div>
+{% endblock %}
