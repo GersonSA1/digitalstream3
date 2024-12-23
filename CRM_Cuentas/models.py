@@ -6,8 +6,8 @@ import random
 
 class Cliente(models.Model):
     id_cliente = models.AutoField(primary_key=True)
-    nombres = models.CharField(max_length=300)
-    telefono = models.CharField(max_length=15)
+    nombres = models.CharField(max_length=500)
+    telefono = models.CharField(max_length=20)
 
     def __str__(self):
         return self.nombres

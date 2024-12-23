@@ -1,11 +1,13 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.http import JsonResponse
-from .models import Plan, PerfilCuenta, Cliente, TipoDispositivo, Servicio, Perfil, Cuenta
+from .models import Plan, PerfilCuenta, Cliente, TipoDispositivo, Servicio, Perfil, Cuenta, Grupo
 from .forms import PerfilForm
 from datetime import date, timedelta
 from django.db.models import Count
 from django.db import transaction
 from django.db.models import Sum 
+from django.http import JsonResponse
+import json
 
 def vender_plan(request, plan_id=None):
     if request.method == 'GET':
@@ -331,7 +333,6 @@ def agregar_dia(request, perfil_id):
         return JsonResponse({'success': False, 'message': 'Método no permitido.'})
 
 
-
 def admin_cuentas(request):
     # ⚙️ Obtener la fecha de hoy y mañana
     hoy = date.today()
@@ -407,6 +408,11 @@ def admin_cuentas(request):
     cuentas_vencen_hoy = cuentas.filter(fech_fin=hoy).count()
     cuentas_vencen_manana = cuentas.filter(fech_fin=manana).count()
 
+    # 🔥 Datos para el modal de creación de cuentas
+    servicios = Servicio.objects.all()
+    grupos = Grupo.objects.all()
+    dispositivos = TipoDispositivo.objects.all()
+
     # Contexto para la plantilla
     context = {
         'cuentas': cuentas,
@@ -423,16 +429,17 @@ def admin_cuentas(request):
         'sort': sort,  # Campo de ordenación
         'order': order,  # Orden ascendente o descendente
         'servicio_id': int(servicio_id) if servicio_id else None,  # ID del servicio seleccionado
-        'servicios': Servicio.objects.all(),  # Lista de servicios para el filtro
+        'servicios': servicios,  # Lista de servicios para el modal
+        'grupos': grupos,  # Lista de grupos para el modal
+        'dispositivos': dispositivos,  # Lista de dispositivos para el modal
     }
 
     return render(request, 'admin_cuentas.html', context)
 
-
 def editar_cuenta(request, cuenta_id):
-    cuenta = get_object_or_404(Cuenta, id_cuenta=cuenta_id)
-    
     if request.method == 'POST':
+        cuenta = get_object_or_404(Cuenta, id_cuenta=cuenta_id)
+
         correo = request.POST.get('correo_cuenta')
         contrasena = request.POST.get('contrasena')
 
@@ -441,10 +448,45 @@ def editar_cuenta(request, cuenta_id):
         if contrasena:
             cuenta.contrasena = contrasena
 
-        cuenta.save()
+        cuenta.save(update_fields=['correo_cuenta', 'contrasena'])
 
         return JsonResponse({'success': True, 'message': 'La cuenta ha sido actualizada correctamente.'})
 
-    return JsonResponse({'success': False, 'message': 'No se pudo actualizar la cuenta.'})
+    return JsonResponse({'success': False, 'message': 'Método no permitido.'}, status=405)
 
 
+
+
+def eliminar_cuenta(request, cuenta_id):
+    if request.method == 'POST':
+        try:
+            # Obtener la cuenta que se desea eliminar
+            cuenta = get_object_or_404(Cuenta, id_cuenta=cuenta_id)
+
+            # Verificar si hay perfiles asignados a la cuenta
+            perfiles_asignados = PerfilCuenta.objects.filter(id_cuenta=cuenta, asignado=True)
+
+            if perfiles_asignados.exists():
+                # Si hay perfiles asignados, devolver un error
+                return JsonResponse({
+                    'success': False,
+                    'message': 'No se puede eliminar la cuenta porque tiene perfiles asignados.'
+                }, status=400)
+
+            # Si no hay perfiles asignados, eliminar la cuenta
+            cuenta.delete()
+
+            return JsonResponse({
+                'success': True,
+                'message': 'La cuenta se ha eliminado correctamente.'
+            })
+
+        except Exception as e:
+            # Manejo de errores
+            return JsonResponse({
+                'success': False,
+                'message': f'Error al intentar eliminar la cuenta: {str(e)}'
+            }, status=500)
+
+    # Si el método no es POST, devolver un error
+    return JsonResponse({'success': False, 'message': 'Método no permitido.'}, status=405)

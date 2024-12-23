@@ -1,34 +1,50 @@
 from django.contrib import admin
-from .models import Cliente, Grupo, TipoDispositivo, Servicio, Cuenta, PerfilCuenta, Plan, Perfil
-from CRM_Cuentas.models import Perfil, HistorialRenovacion
+from import_export.admin import ImportExportModelAdmin
+from import_export import resources
+from .models import Cliente, Grupo, TipoDispositivo, Servicio, Cuenta, PerfilCuenta, Plan, Perfil, HistorialRenovacion
 
-admin.site.register(Cliente)
-admin.site.register(Grupo)
-admin.site.register(TipoDispositivo)
-admin.site.register(Servicio)
-admin.site.register(Cuenta)
-admin.site.register(PerfilCuenta)
-admin.site.register(Plan)
+# Registramos modelos simples
+@admin.register(Cliente, Grupo, TipoDispositivo, Servicio, Plan)
+class DefaultAdmin(admin.ModelAdmin):
+    pass
 
+# Definimos recursos para importar y exportar
+class PerfilResource(resources.ModelResource):
+    class Meta:
+        model = Perfil
+        fields = ('id_perfil', 'id_cliente__nombres', 'id_plan__descripcion', 'fech_inicio', 'fech_fin', 'estado')
+        export_order = ('id_perfil', 'id_cliente__nombres', 'id_plan__descripcion', 'fech_inicio', 'fech_fin', 'estado')
 
-class HistorialRenovacionInline(admin.TabularInline):
-    model = HistorialRenovacion
-    extra = 0
-    fields = ('fecha_renovacion', 'meses_agregados', 'correo_cuenta', 'usuario_perfil', 'id_plan')
+class CuentaResource(resources.ModelResource):
+    class Meta:
+        model = Cuenta
+        fields = ('id_cuenta', 'correo_cuenta', 'id_servicio__descripcion', 'fech_inicio', 'fech_fin', 'estado')
+        export_order = ('id_cuenta', 'correo_cuenta', 'id_servicio__descripcion', 'fech_inicio', 'fech_fin', 'estado')
 
+class HistorialRenovacionResource(resources.ModelResource):
+    class Meta:
+        model = HistorialRenovacion
+        fields = ('id_historial', 'id_perfil__id_cliente__nombres', 'id_plan__descripcion', 'fecha_renovacion', 'meses_agregados')
+        export_order = ('id_historial', 'id_perfil__id_cliente__nombres', 'id_plan__descripcion', 'fecha_renovacion', 'meses_agregados')
 
+# Configuramos administradores con import/export
 @admin.register(Perfil)
-class PerfilAdmin(admin.ModelAdmin):
-    list_display = ("id_perfil", "id_cliente", "fech_inicio", "fech_fin", "estado")
-    inlines = [HistorialRenovacionInline]
+class PerfilAdmin(ImportExportModelAdmin):
+    resource_class = PerfilResource
+    list_display = ("id_perfil", "id_cliente", "id_plan", "fech_inicio", "fech_fin", "estado")
+    list_filter = ("estado", "id_plan")
+    search_fields = ("id_cliente__nombres", "id_plan__descripcion")
 
-    def save_model(self, request, obj, form, change):
-        # Pasa el flag `is_admin` al método save del modelo
-        obj.save(is_admin=True)
-
+@admin.register(Cuenta)
+class CuentaAdmin(ImportExportModelAdmin):
+    resource_class = CuentaResource
+    list_display = ("id_cuenta", "correo_cuenta", "id_servicio", "fech_inicio", "fech_fin", "estado")
+    list_filter = ("estado", "id_servicio")
+    search_fields = ("correo_cuenta", "id_servicio__descripcion")
 
 @admin.register(HistorialRenovacion)
-class HistorialRenovacionAdmin(admin.ModelAdmin):
-    list_display = ('id_perfil', 'fecha_renovacion', 'meses_agregados', 'correo_cuenta', 'usuario_perfil', 'id_plan')
-    search_fields = ('correo_cuenta', 'usuario_perfil', 'id_plan__descripcion')
+class HistorialRenovacionAdmin(ImportExportModelAdmin):
+    resource_class = HistorialRenovacionResource
+    list_display = ('id_historial', 'id_perfil', 'id_plan', 'fecha_renovacion', 'meses_agregados')
     list_filter = ('id_plan', 'fecha_renovacion')
+    search_fields = ('id_perfil__id_cliente__nombres', 'id_plan__descripcion')

@@ -16,6 +16,7 @@ urlpatterns = [
 
     path('cuentas/', views.admin_cuentas, name='admin_cuentas'),
     path('editar_cuenta/<int:cuenta_id>/', views.editar_cuenta, name='editar_cuenta'),
+    path('eliminar_cuenta/<int:cuenta_id>/', views.eliminar_cuenta, name='editar_cuenta'),
 
 
 ]

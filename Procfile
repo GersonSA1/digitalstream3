@@ -1,1 +1,2 @@
-web: gunicorn digitalstream.wsgi:application --port $PORT
+web: gunicorn digitalstream.wsgi:application
+
